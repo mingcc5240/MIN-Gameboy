@@ -1,7 +1,7 @@
+#define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 #include <cstdint>
 #include <fcntl.h>
-#include <sys/mman.h>
 #include <unistd.h>
 
 #define OPCREL(_) opcrel = (opcode - _) / 8
@@ -28,8 +28,8 @@
 #define OP9_IMM_PTR(_)                                                         \
   OP8_REL(_) case _ + 70 : operand = opcode & 64 ? mem8(PC++) : tmp8;
 
-uint8_t opcode, opcrel, tmp8, operand, carry, neg, *rom0, *rom1, io[512],
-    video_ram[8192], work_ram[16384], *extram, *extrambank,
+uint8_t opcode, opcrel, tmp8, operand, carry, neg, rom0[1024*1024], *rom1, io[512],
+    video_ram[8192], work_ram[16384], *extram, extrambank[32*1024],
     reg8[] = {19, 0, 216, 0, 77, 1, 176, 1}, &F = reg8[6], &A = reg8[7],
     *reg8_group[] = {reg8 + 1, reg8,     reg8 + 3, reg8 + 2,
                      reg8 + 5, reg8 + 4, &F,       &A},
@@ -40,7 +40,8 @@ uint8_t const *key_state;
 uint16_t PC = 256, *reg16 = (uint16_t *)reg8, &HL = reg16[2], SP = 65534,
          &DIV = (uint16_t &)io[259], ppu_dot = 32,
          *reg16_group1[] = {reg16, reg16 + 1, &HL, &SP},
-         *reg16_group2[] = {reg16, reg16 + 1, &HL, &HL}, prev_cycles, cycles;
+         *reg16_group2[] = {reg16, reg16 + 1, &HL, &HL}, prev_cycles, cycles,
+          cart_ram_bank_offset=0;
 
 int tmp, tmp2, F_mask[] = {128, 128, 16, 16}, frame_buffer[23040],
                palette[] = {-1, -23197,   -65536,    -1 << 24,
@@ -59,8 +60,8 @@ uint8_t mem8(uint16_t addr = HL, uint8_t val = 0, int write = 0) {
       return rom0[addr];
 
     case 2:
-      if (write && val <= 3)
-        extrambank = extram + (val << 13);
+      if(write&&val<=3) 
+        cart_ram_bank_offset = 0xA000 - (val << 13);
 
     case 3:
       return rom1[addr & 16383];
@@ -72,10 +73,9 @@ uint8_t mem8(uint16_t addr = HL, uint8_t val = 0, int write = 0) {
       return video_ram[addr];
 
     case 5:
-      addr &= 8191;
-      if (write)
-        extrambank[addr] = val;
-      return extrambank[addr];
+     if(write) 
+      extrambank[addr - cart_ram_bank_offset] = val;
+    return extrambank[addr-cart_ram_bank_offset];
 
     case 7:
       if (addr >= 65024) {
@@ -137,13 +137,9 @@ uint8_t get_color(int tile, int y_offset, int x_offset) {
 }
 
 int main() {
-  rom1 = (rom0 = (uint8_t *)mmap(0, 1 << 20, PROT_READ, MAP_SHARED,
-                                 open("rom.gb", O_RDONLY), 0)) +
-         32768;
-  tmp = open("rom.sav", O_CREAT|O_RDWR, 0666);
-  ftruncate(tmp, 32768);
-  extrambank = extram =
-      (uint8_t *)mmap(0, 32768, PROT_READ | PROT_WRITE, MAP_SHARED, tmp, 0);
+  SDL_RWread(SDL_RWFromFile("PokemonRed.gb","rb"), rom0, 1024*1024,1);
+  rom1 = rom0 + 32768;
+  
   LCDC = 145;
   DIV = 44032;
   SDL_Init(SDL_INIT_VIDEO);
