@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED 
 #include                                                                                                      <SDL2/SDL.h>  /******************************************/
 #include                                                                                                      <sys/mman.h>  /*     POKEGB by Ben Smith (June 2021)    */
 #include                                                                                                        <unistd.h>  /* -------------------------------------- */
