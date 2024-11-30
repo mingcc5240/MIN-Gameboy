@@ -1,3 +1,4 @@
+#define SDL_MAIN_HANDLED 
 #include <SDL2/SDL.h>                                                                        /************************************************************/
 #include <stdint.h>                                                                          /*    SMOLNES by Ben Smith (Oct 2022) (updated Jan 2024)    */
 #define k if                                                                                 /* -------------------------------------------------------- */
